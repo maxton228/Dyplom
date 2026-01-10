@@ -10,12 +10,22 @@ public class StealthAgent : Agent
     [SerializeField] private Transform target;
 
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 4f;
+    [SerializeField] private float moveSpeed = 6f;
+    [Tooltip("Швидкість повороту (градусів за секунду). Було 720, стало 200.")]
+    [SerializeField] private float rotationSpeed = 450f; // <--- ЗМЕНШИВ ШВИДКІСТЬ
+
+    [Header("Hearing System")]
+    [Tooltip("Скільки секунд бот пам'ятає звук.")]
+    [SerializeField] private float noiseMemoryDuration = 3.0f;
+    private bool hasHeardNoise = false;
+    private Vector3 lastNoisePosition;
+    private float noiseTimer;
 
     [Header("Arena")]
     [SerializeField] private float arenaSize = 4f;
     [SerializeField] private float spawnRadius = 6f;
 
+    
     private Rigidbody rb;
     private int stepCount;
 
@@ -29,66 +39,83 @@ public class StealthAgent : Agent
     }
 
     // =========================
+    // HEARING METHOD (Для Movement.cs)
+    // =========================
+    public void RegisterNoise(Vector3 noisePos, float volume)
+    {
+        // Бот запам'ятовує точку звуку
+        lastNoisePosition = noisePos;
+        hasHeardNoise = true;
+        noiseTimer = noiseMemoryDuration; // Скидаємо таймер забування
+
+        // Можна додати миттєвий маленький ревард, щоб він зрозумів, що слухати - це корисно
+        // AddReward(0.001f); 
+    }
+
+    // =========================
     // EPISODE RESET
     // =========================
     public override void OnEpisodeBegin()
     {
         stepCount = 0;
+        hasHeardNoise = false;
+        noiseTimer = 0f;
 
-        rb.linearVelocity = Vector3.zero; // (або rb.velocity для старих версій)
+        // Скидаємо фізику
+        rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
-        // 1. Ставимо Агента (безпечно, щоб не в стіні)
-        float safeZone = arenaSize - 2f;
-        Vector3 agentPos = new Vector3(
-            Random.Range(-safeZone, safeZone),
-            0.5f,
-            Random.Range(-safeZone, safeZone)
-        );
-        transform.localPosition = agentPos;
-        // Можна навіть повернути його обличчям до цілі для початку, але поки хай крутиться
+        // 1. БОТ: Стає чітко в центр своєї арени (локальні координати 0,0,0)
+        transform.localPosition = new Vector3(0f, 0.5f, 0f);
         transform.localRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
 
-        // 2. Ставимо Ціль ДУЖЕ БЛИЗЬКО (1.5 - 3 метри)
-        float closeSpawnRadius = 3.0f; // Максимальна відстань
-        float minSpawnDist = 1.5f;     // Мінімальна відстань
-
-        Vector3 randomOffset;
-        // Генеруємо випадкову точку, поки вона не потрапить у потрібний діапазон
-        int attempts = 0;
-        do
+        // 2. ГРАВЕЦЬ (Target): Спавниться навколо бота
+        if (target != null)
         {
-            randomOffset = Random.insideUnitSphere * closeSpawnRadius;
-            randomOffset.y = 0;
-            attempts++;
+            // Вибираємо випадковий напрямок
+            Vector3 randomDir = Random.onUnitSphere;
+            randomDir.y = 0; // Щоб не спавнився в повітрі або під підлогою
+            randomDir.Normalize();
+
+            // Вибираємо випадкову відстань (від 2 до 5 метрів)
+            float randomDistance = Random.Range(2f, 5f);
+
+            // Ставимо гравця: Позиція Бота + Напрямок * Відстань
+            target.localPosition = transform.localPosition + (randomDir * randomDistance);
+
+            // Корекція висоти гравця (щоб не провалився)
+            Vector3 finalPos = target.localPosition;
+            finalPos.y = 0.5f;
+            target.localPosition = finalPos;
         }
-        while (randomOffset.magnitude < minSpawnDist && attempts < 10);
-
-        // Якщо за 10 спроб не вийшло (малоймовірно), просто беремо вектор 2м вперед
-        if (randomOffset.magnitude < minSpawnDist) randomOffset = Vector3.forward * 2f;
-
-        Vector3 targetPos = agentPos + randomOffset;
-
-        // 3. Clamp (щоб не вилізло за стіни)
-        float limit = arenaSize - 1.5f;
-        targetPos.x = Mathf.Clamp(targetPos.x, -limit, limit);
-        targetPos.z = Mathf.Clamp(targetPos.z, -limit, limit);
-
-        target.localPosition = targetPos;
     }
 
     // =========================
-    // OBSERVATIONS
+    // OBSERVATIONS (Вхідні дані нейронки)
     // =========================
     public override void CollectObservations(VectorSensor sensor)
     {
-       
-
-        // Agent forward direction
+        // 1. Власний напрямок (Forward) - 3 числа
         sensor.AddObservation(transform.forward);
 
-        // Agent velocity
-        sensor.AddObservation(rb.linearVelocity / moveSpeed);
+        // 2. Власна швидкість - 2 числа
+        sensor.AddObservation(rb.linearVelocity.x / moveSpeed);
+        sensor.AddObservation(rb.linearVelocity.z / moveSpeed);
+
+        // 3. --- СЛУХ (Нове) --- 
+        // 1 число: Чи чую я звук? (1 = так, 0 = ні)
+        sensor.AddObservation(hasHeardNoise ? 1.0f : 0.0f);
+
+        // 3 числа: Вектор напрямку на звук (якщо звуку немає, передаємо нуль)
+        if (hasHeardNoise)
+        {
+            Vector3 dirToNoise = (lastNoisePosition - transform.position).normalized;
+            sensor.AddObservation(dirToNoise);
+        }
+        else
+        {
+            sensor.AddObservation(Vector3.zero);
+        }
     }
 
     // =========================
@@ -98,40 +125,75 @@ public class StealthAgent : Agent
     {
         stepCount++;
 
+        // Оновлюємо таймер пам'яті звуку
+        if (hasHeardNoise)
+        {
+            noiseTimer -= Time.fixedDeltaTime;
+            if (noiseTimer <= 0)
+            {
+                hasHeardNoise = false; // Забули звук
+            }
+        }
+
         float moveX = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
         float moveZ = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
 
         Vector3 moveDir = new Vector3(moveX, 0f, moveZ);
 
-        // --- Physics movement ---
+        // --- Movement ---
         rb.MovePosition(rb.position + moveDir * moveSpeed * Time.fixedDeltaTime);
 
-        // --- Rotation ---
         if (moveDir.sqrMagnitude > 0.001f)
         {
             Quaternion targetRot = Quaternion.LookRotation(moveDir);
-            transform.rotation = Quaternion.Slerp(
+            transform.rotation = Quaternion.RotateTowards(
                 transform.rotation,
                 targetRot,
-                Time.fixedDeltaTime * 10f
+                rotationSpeed * Time.fixedDeltaTime
             );
         }
 
-        // =========================
-        // REWARD LOGIC
-        // =========================
+        // 2. Рух
+        // Додаємо moveDir * moveSpeed.
+        // Оскільки moveDir може бути маленьким (0.1), високий moveSpeed (10-12) компенсує це.
+        Vector3 newPos = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
+        rb.MovePosition(newPos);
 
 
+        // --- НАГОРОДИ ---
+        // Даємо крихітну нагороду за швидкість, щоб він хотів бігати, а не стояти
+        if (moveDir.magnitude > 0.1f)
+        {
+            AddReward(0.0001f);
+        }
 
-        // Living penalty (forces speed)
-        AddReward(-0.0005f);
+        // Інші нагороди...
+        if (SeesPlayer()) AddReward(0.02f); // Збільшив нагороду за зір
+        if (hasHeardNoise && Vector3.Distance(transform.position, lastNoisePosition) < 2.0f) AddReward(0.005f);
 
-        // Time limit
+        AddReward(-0.0005f); // Штраф за час
+
         if (stepCount > 2500)
         {
             AddReward(-1f);
             EndEpisode();
         }
+    }
+
+    bool SeesPlayer()
+    {
+        if (target == null) return false;
+
+        Vector3 origin = transform.position + Vector3.up * 1.2f;
+        Vector3 dir = (target.position - origin).normalized;
+
+        // Додав маску шарів (LayerMask), щоб промені не впиралися в тригери зон
+        // Тут стоїть Default, зміни за потребою
+        if (Physics.Raycast(origin, dir, out RaycastHit hit, 15f))
+        {
+            return hit.collider.CompareTag("Player");
+        }
+        return false;
     }
 
     // =========================
@@ -141,37 +203,13 @@ public class StealthAgent : Agent
     {
         if (collision.gameObject.CompareTag("Player"))
         {
-            AddReward(50f);
+            Debug.Log("Caught Player!");
+            AddReward(10.0f); // Велика нагорода за піймання
             EndEpisode();
         }
-        else if (collision.gameObject.CompareTag("Wall"))
+        else if (collision.gameObject.CompareTag("Wall")) // Краще перевіряти тег "Wall", а не "все що не підлога"
         {
-            AddReward(-0.2f);
+            AddReward(-0.5f); // Маленький штраф за тикання в стіни
         }
-    }
-
-    // =========================
-    // UTILS
-    // =========================
-    private Vector3 RandomPosition()
-    {
-        // Трішки зменшив радіус спавну агента, щоб він не з'являвся прямо в стіні
-        float safeZone = arenaSize - 1.5f;
-        return new Vector3(
-            Random.Range(-safeZone, safeZone),
-            0.5f,
-            Random.Range(-safeZone, safeZone)
-        );
-    }
-
-    // =========================
-    // HEURISTIC (for testing)
-    // =========================
-    public override void Heuristic(in ActionBuffers actionsOut)
-    {
-        var continuousActions = actionsOut.ContinuousActions;
-
-        continuousActions[0] = Input.GetAxis("Horizontal");
-        continuousActions[1] = Input.GetAxis("Vertical");
     }
 }
