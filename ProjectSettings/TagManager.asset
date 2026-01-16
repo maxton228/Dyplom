@@ -17,6 +17,7 @@ TagManager:
   - Dirt (Static)
   - Wood
   - Floor
+  - Bot
   layers:
   - Default
   - TransparentFX

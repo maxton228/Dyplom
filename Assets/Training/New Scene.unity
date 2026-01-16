@@ -1340,7 +1340,12 @@ PrefabInstance:
     - target: {fileID: 536581317018457342, guid: 7e34b9c4d90a5b7439bc4c321750bde0,
         type: 3}
       propertyPath: noiseRadius
-      value: 4.84
+      value: 1.19
+      objectReference: {fileID: 0}
+    - target: {fileID: 536581317018457342, guid: 7e34b9c4d90a5b7439bc4c321750bde0,
+        type: 3}
+      propertyPath: baseNoiseRadius
+      value: 1.33
       objectReference: {fileID: 0}
     - target: {fileID: 2294868803416071645, guid: 7e34b9c4d90a5b7439bc4c321750bde0,
         type: 3}

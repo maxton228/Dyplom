@@ -2,58 +2,58 @@
     "StealthAgent": {
         "checkpoints": [
             {
-                "steps": 157674,
-                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-157674.onnx",
-                "reward": 16.233010295778513,
-                "creation_time": 1768077745.348346,
+                "steps": 499954,
+                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-499954.onnx",
+                "reward": 27.766286793900164,
+                "creation_time": 1768086772.5698555,
                 "auxillary_file_paths": [
-                    "results\\Train_01\\StealthAgent\\StealthAgent-157674.pt"
+                    "results\\Train_01\\StealthAgent\\StealthAgent-499954.pt"
                 ]
             },
             {
-                "steps": 158655,
-                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-158655.onnx",
-                "reward": 12.03181254863739,
-                "creation_time": 1768078144.964356,
+                "steps": 636213,
+                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-636213.onnx",
+                "reward": 26.140946580644915,
+                "creation_time": 1768087129.7549605,
                 "auxillary_file_paths": [
-                    "results\\Train_01\\StealthAgent\\StealthAgent-158655.pt"
+                    "results\\Train_01\\StealthAgent\\StealthAgent-636213.pt"
                 ]
             },
             {
-                "steps": 164988,
-                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-164988.onnx",
-                "reward": 15.956370144036779,
-                "creation_time": 1768078208.2392879,
+                "steps": 670684,
+                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-670684.onnx",
+                "reward": 26.40732593176996,
+                "creation_time": 1768087636.905506,
                 "auxillary_file_paths": [
-                    "results\\Train_01\\StealthAgent\\StealthAgent-164988.pt"
+                    "results\\Train_01\\StealthAgent\\StealthAgent-670684.pt"
                 ]
             },
             {
-                "steps": 499995,
-                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-499995.onnx",
-                "reward": 19.315499924999827,
-                "creation_time": 1768079113.951822,
+                "steps": 699018,
+                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-699018.onnx",
+                "reward": 26.118799578398466,
+                "creation_time": 1768088064.2826679,
                 "auxillary_file_paths": [
-                    "results\\Train_01\\StealthAgent\\StealthAgent-499995.pt"
+                    "results\\Train_01\\StealthAgent\\StealthAgent-699018.pt"
                 ]
             },
             {
-                "steps": 696051,
-                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-696051.onnx",
-                "reward": 18.111379778385164,
-                "creation_time": 1768079654.029902,
+                "steps": 723271,
+                "file_path": "results\\Train_01\\StealthAgent\\StealthAgent-723271.onnx",
+                "reward": 2.429645313458009,
+                "creation_time": 1768088198.8314931,
                 "auxillary_file_paths": [
-                    "results\\Train_01\\StealthAgent\\StealthAgent-696051.pt"
+                    "results\\Train_01\\StealthAgent\\StealthAgent-723271.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 696051,
+            "steps": 723271,
             "file_path": "results\\Train_01\\StealthAgent.onnx",
-            "reward": 18.111379778385164,
-            "creation_time": 1768079654.029902,
+            "reward": 2.429645313458009,
+            "creation_time": 1768088198.8314931,
             "auxillary_file_paths": [
-                "results\\Train_01\\StealthAgent\\StealthAgent-696051.pt"
+                "results\\Train_01\\StealthAgent\\StealthAgent-723271.pt"
             ]
         }
     },

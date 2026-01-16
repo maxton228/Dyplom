@@ -78,7 +78,7 @@ public class StealthAgent : Agent
             randomDir.Normalize();
 
             // Вибираємо випадкову відстань (від 2 до 5 метрів)
-            float randomDistance = Random.Range(2f, 5f);
+            float randomDistance = Random.Range(5f, 7f);
 
             // Ставимо гравця: Позиція Бота + Напрямок * Відстань
             target.localPosition = transform.localPosition + (randomDir * randomDistance);

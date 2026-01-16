@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: SM_Chr_Hazmat_Suit_Male_01 Variant
       objectReference: {fileID: 0}
+    - target: {fileID: 1126461364902118, guid: f8630212f58531f45bca1a18252ad0d3, type: 3}
+      propertyPath: m_TagString
+      value: Bot
+      objectReference: {fileID: 0}
     - target: {fileID: 1223131888855636, guid: f8630212f58531f45bca1a18252ad0d3, type: 3}
       propertyPath: m_IsActive
       value: 0
