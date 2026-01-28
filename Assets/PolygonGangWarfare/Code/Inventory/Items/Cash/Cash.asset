@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f7fc39eb3c5fdc4e8057faceca2dcfa, type: 3}
   m_Name: Cash
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  itemName: "\u0413\u0440\u043E\u0448\u0456"
-  description: "\u041F\u0430\u0447\u043A\u0430 \u0433\u0440\u043E\u0448\u0435\u0439"
+  itemName: Cash
   icon: {fileID: 21300000, guid: d898cd169d884c54b86478170b8120a2, type: 3}
-  prefab: {fileID: 1230537664151910, guid: 83e063cc11cd4ca44956397b3d72dc2d, type: 3}
-  isStackable: 0
+  description: "\u041F\u0430\u0447\u043A\u0430 \u0433\u0440\u043E\u0448\u0435\u0439"
+  isStackable: 1

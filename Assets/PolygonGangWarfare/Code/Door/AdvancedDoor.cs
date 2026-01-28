@@ -27,11 +27,8 @@ public class AdvancedDoor: MonoBehaviour
 
     void Update()
     {
-        // --- ЛОГІКА UI (АВТОМАТИЧНЕ ЗНИКНЕННЯ) ---
         if (interactionUI != null)
         {
-            // Якщо на двері подивилися менше ніж 0.1 сек тому -> показати
-            // Якщо минуло більше часу (гравець відвів погляд) -> сховати
             bool shouldShow = (Time.time - lastLookTime < 0.1f) && !isDragging;
 
             if (interactionUI.activeSelf != shouldShow)
@@ -40,7 +37,6 @@ public class AdvancedDoor: MonoBehaviour
             }
         }
 
-        // --- ФІЗИКА ДВЕРЕЙ ---
         if (!isDragging)
         {
             currentAngle = Mathf.Lerp(currentAngle, targetAngle, Time.deltaTime * smoothSpeed);
@@ -48,13 +44,7 @@ public class AdvancedDoor: MonoBehaviour
         }
     }
 
-    // --- Цей метод викликає скрипт Гравця щокадру, коли наводиться ---
-    public void ShowPrompt()
-    {
-        lastLookTime = Time.time;
-    }
 
-    // --- МЕТОДИ ВЗАЄМОДІЇ ---
     public void ToggleDoor(Vector3 playerPosition)
     {
         if (Mathf.Abs(targetAngle) > 1f) targetAngle = 0f;
@@ -78,15 +68,6 @@ public class AdvancedDoor: MonoBehaviour
         transform.localRotation = Quaternion.Euler(0, currentAngle, 0);
         targetAngle = currentAngle;
     }
-
-    public void EndDrag()
-    {
-        isDragging = false;
-        if (Mathf.Abs(currentAngle) < 10f) targetAngle = 0f;
-    }
-
-    // --- ТРИГЕРИ (ЛИШЕ ДЛЯ БОТА) ---
-    // Працює, навіть якщо тригер на дочірньому об'єкті (якщо там нема Rigidbody)
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag(botTag) && !isDragging)
@@ -97,6 +78,16 @@ public class AdvancedDoor: MonoBehaviour
             if (invertRotation) angle = -angle;
             targetAngle = angle;
         }
+    }
+    public void EndDrag()
+    {
+        isDragging = false;
+        if (Mathf.Abs(currentAngle) < 10f) targetAngle = 0f;
+    }
+
+    public void ShowPrompt()
+    {
+        lastLookTime = Time.time;
     }
 
     private void OnTriggerExit(Collider other)

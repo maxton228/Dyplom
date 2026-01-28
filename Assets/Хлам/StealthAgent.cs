@@ -125,75 +125,54 @@ public class StealthAgent : Agent
     {
         stepCount++;
 
-        // Оновлюємо таймер пам'яті звуку
+        // --- 1. ЛОГІКА СЛУХУ ---
         if (hasHeardNoise)
         {
             noiseTimer -= Time.fixedDeltaTime;
-            if (noiseTimer <= 0)
-            {
-                hasHeardNoise = false; // Забули звук
-            }
+            if (noiseTimer <= 0) hasHeardNoise = false;
         }
 
+        // --- 2. РУХ (Виправлено дублювання) ---
         float moveX = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
         float moveZ = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
 
-        Vector3 moveDir = new Vector3(moveX, 0f, moveZ);
+        Vector3 moveDir = new Vector3(moveX, 0f, moveZ).normalized; // Додав normalized, щоб діагональний рух не був швидшим
 
-        // --- Movement ---
-        rb.MovePosition(rb.position + moveDir * moveSpeed * Time.fixedDeltaTime);
-
-        if (moveDir.sqrMagnitude > 0.001f)
-        {
-            Quaternion targetRot = Quaternion.LookRotation(moveDir);
-            transform.rotation = Quaternion.RotateTowards(
-                transform.rotation,
-                targetRot,
-                rotationSpeed * Time.fixedDeltaTime
-            );
-        }
-
-        // 2. Рух
-        // Додаємо moveDir * moveSpeed.
-        // Оскільки moveDir може бути маленьким (0.1), високий moveSpeed (10-12) компенсує це.
-        Vector3 newPos = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
-        rb.MovePosition(newPos);
-
-
-        // --- НАГОРОДИ ---
-        // Даємо крихітну нагороду за швидкість, щоб він хотів бігати, а не стояти
+        // Рухаємось
         if (moveDir.magnitude > 0.1f)
         {
-            AddReward(0.0001f);
+            // Рух
+            Vector3 targetPos = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
+            rb.MovePosition(targetPos);
+
+            // Поворот (тільки якщо рухаємось)
+            Quaternion targetRot = Quaternion.LookRotation(moveDir);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
         }
 
-        // Інші нагороди...
-        if (SeesPlayer()) AddReward(0.02f); // Збільшив нагороду за зір
-        if (hasHeardNoise && Vector3.Distance(transform.position, lastNoisePosition) < 2.0f) AddReward(0.005f);
+        // --- 3. НАГОРОДИ ---
 
-        AddReward(-0.0005f); // Штраф за час
+        // Штраф за час (щоб поспішав)
+        AddReward(-0.0005f);
 
+        // Нагорода за те, що йде на звук (опціонально, щоб навчити користуватися слухом)
+        if (hasHeardNoise)
+        {
+            float distToNoise = Vector3.Distance(transform.position, lastNoisePosition);
+            // Якщо підійшов до джерела звуку - даємо трохи балів і "забуваємо" звук, щоб не тупив там
+            if (distToNoise < 1.5f)
+            {
+                AddReward(0.1f);
+                hasHeardNoise = false;
+            }
+        }
+
+        // Завершення епізоду, якщо занадто довго тупить
         if (stepCount > 2500)
         {
-            AddReward(-1f);
+            AddReward(-1f); // Штраф за поразку часом
             EndEpisode();
         }
-    }
-
-    bool SeesPlayer()
-    {
-        if (target == null) return false;
-
-        Vector3 origin = transform.position + Vector3.up * 1.2f;
-        Vector3 dir = (target.position - origin).normalized;
-
-        // Додав маску шарів (LayerMask), щоб промені не впиралися в тригери зон
-        // Тут стоїть Default, зміни за потребою
-        if (Physics.Raycast(origin, dir, out RaycastHit hit, 15f))
-        {
-            return hit.collider.CompareTag("Player");
-        }
-        return false;
     }
 
     // =========================

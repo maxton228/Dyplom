@@ -1,41 +1,37 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 public class InventorySlot : MonoBehaviour
 {
-    private Image buttonImage;
-    private Button button;
+    [Header("UI Components")]
+    [SerializeField] private Image iconImage;
+    [SerializeField] private TextMeshProUGUI amountText;
+    [SerializeField] private Button button; // Щоб можна було клікати
 
-    private ItemData currentItem;
+    private ItemData item;
 
-    // Цей метод спрацює автоматично при створенні кнопки
-    void Awake()
+    public void AddItem(ItemData newItem, int amount)
     {
-        // Скрипт сам знаходить компоненти Image та Button на цьому ж об'єкті
-        buttonImage = GetComponent<Image>();
-        button = GetComponent<Button>();
-    }
+        item = newItem;
+        iconImage.sprite = item.icon;
+        iconImage.enabled = true;
 
-    // Цей метод викликає InventorySystem, коли додає предмет
-    public void Setup(ItemData newItem)
-    {
-        currentItem = newItem;
-
-        if (currentItem != null)
+        if (amount > 1)
         {
-            // Якщо компонент Image знайшовся — міняємо йому спрайт
-            if (buttonImage != null)
-            {
-                buttonImage.sprite = currentItem.icon;
-                buttonImage.enabled = true;
-            }
+            amountText.text = amount.ToString();
+            amountText.enabled = true;
+        }
+        else
+        {
+            amountText.enabled = false;
         }
     }
 
-    public void OnClick()
+    public void ClearSlot()
     {
-        if (currentItem != null)
-        {
-            Debug.Log("Клікнули по предмету: " + currentItem.itemName);
-        }
+        item = null;
+        iconImage.sprite = null;
+        iconImage.enabled = false;
+        amountText.enabled = false;
     }
 }

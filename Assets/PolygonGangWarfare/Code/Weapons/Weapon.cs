@@ -10,7 +10,10 @@ namespace InfimaGames.LowPolyShooterPack
     public class Weapon : WeaponBehaviour
     {
         #region FIELDS SERIALIZED
-        
+        [Header("Ammo Settings")]
+        [Tooltip("Type of ammo")]
+        [SerializeField] private ItemData ammoType;
+
         [Header("Firing")]
 
         [Tooltip("Is this weapon automatic? If yes, then holding down the firing button will continuously fire.")]
@@ -188,21 +191,41 @@ namespace InfimaGames.LowPolyShooterPack
         
         public override bool IsFull() => ammunitionCurrent == magazineBehaviour.GetAmmunitionTotal();
         public override bool HasAmmunition() => ammunitionCurrent > 0;
-
+        
         public override RuntimeAnimatorController GetAnimatorController() => controller;
         public override WeaponAttachmentManagerBehaviour GetAttachmentManager() => attachmentManager;
 
         #endregion
 
         #region METHODS
-
+        public ItemData GetAmmoType()
+        {
+            return ammoType;
+        }
         public override void Reload()
         {
-            //Play Reload Animation.
+            if (IsFull()) return;
+            if (InventoryManager.Instance != null)
+            {
+                int ammoInBag = InventoryManager.Instance.GetAmmoCount(ammoType);
+                if (ammoInBag <= 0)
+                {
+                    if (audioClipFireEmpty != null)
+                        AudioSource.PlayClipAtPoint(audioClipFireEmpty, transform.position);
+                    return;
+                }
+            }
+
             animator.Play(HasAmmunition() ? "Reload" : "Reload Empty", 0, 0.0f);
         }
         public override void Fire(float spreadMultiplier = 1.0f)
         {
+            if (ammunitionCurrent <= 0)
+            {
+                if (audioClipFireEmpty != null)
+                    AudioSource.PlayClipAtPoint(audioClipFireEmpty, transform.position);
+                return;
+            }
             //We need a muzzle in order to fire this weapon!
             if (muzzleBehaviour == null)
                 return;
@@ -236,12 +259,33 @@ namespace InfimaGames.LowPolyShooterPack
             //Add velocity to the projectile.
             projectile.GetComponent<Rigidbody>().linearVelocity = projectile.transform.forward * projectileImpulse;   
         }
+        public bool CanReload()
+        {
+            if (IsFull()) return false;
 
+            if (InventoryManager.Instance == null) return true;
+
+            int ammoInBag = InventoryManager.Instance.GetAmmoCount(ammoType);
+            return ammoInBag > 0;
+        }
         public override void FillAmmunition(int amount)
         {
-            //Update the value by a certain amount.
-            ammunitionCurrent = amount != 0 ? Mathf.Clamp(ammunitionCurrent + amount, 
-                0, GetAmmunitionTotal()) : magazineBehaviour.GetAmmunitionTotal();
+            int magazineCapacity = magazineBehaviour.GetAmmunitionTotal();
+            int neededAmmo = magazineCapacity - ammunitionCurrent;
+
+            if (neededAmmo <= 0) return;
+
+            if (InventoryManager.Instance != null && ammoType != null)
+            {
+                int ammoTaken = InventoryManager.Instance.TakeAmmo(ammoType, neededAmmo);
+
+                ammunitionCurrent += ammoTaken;
+            }
+            else
+            {
+                ammunitionCurrent = amount != 0 ? Mathf.Clamp(ammunitionCurrent + amount,
+                    0, GetAmmunitionTotal()) : magazineBehaviour.GetAmmunitionTotal();
+            }
         }
 
         public override void EjectCasing()

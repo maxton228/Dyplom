@@ -16,11 +16,20 @@ namespace InfimaGames.LowPolyShooterPack.Interface
         /// </summary>
         protected override void Tick()
         {
-            //Total Ammunition.
-            float ammunitionTotal = equippedWeapon.GetAmmunitionTotal();
-            
-            //Update Text.
-            textMesh.text = ammunitionTotal.ToString(CultureInfo.InvariantCulture);
+            Weapon currentWeapon = equippedWeapon as Weapon;
+
+            if (InventoryManager.Instance != null && currentWeapon != null)
+            {
+                ItemData ammoType = currentWeapon.GetAmmoType();
+
+                if (ammoType != null)
+                {
+                    int totalInBag = InventoryManager.Instance.GetAmmoCount(ammoType);
+
+                    textMesh.text = totalInBag.ToString(CultureInfo.InvariantCulture);
+                    return;
+                }
+            }
         }
         
         #endregion
