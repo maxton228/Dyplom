@@ -1,11 +1,13 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
-
+using InfimaGames.LowPolyShooterPack;
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Rigidbody))]
+
 public class TacticalEnemy : MonoBehaviour
 {
+    private IDifficultyService difficultyService;
     [Header("Зір")]
     [Range(0, 360)] public float viewAngle = 110f;
     public Transform eyePoint;
@@ -38,10 +40,12 @@ public class TacticalEnemy : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
 
-        var healthScript = GetComponent<Health>();
-        if (healthScript != null && stats != null)
+        difficultyService = ServiceLocator.Current.Get<IDifficultyService>();
+
+        if (difficultyService != null)
         {
-            healthScript.InitHealth(stats.maxHealth);
+            difficultyService.OnDifficultyChanged += UpdateStats;
+            UpdateStats();
         }
 
         rb.isKinematic = true;
@@ -53,7 +57,7 @@ public class TacticalEnemy : MonoBehaviour
     {
         if (stats == null)
         {
-            Debug.LogError("НЕ ПРИЗНАЧЕНО EnemyStats (профіль складності)!");
+            Debug.LogError("Не призначено складність");
             return;
         }
 
@@ -93,7 +97,27 @@ public class TacticalEnemy : MonoBehaviour
         }
     }
 
+    void UpdateStats()
+    {
+        if (difficultyService == null) return;
 
+        stats = difficultyService.GetCurrentStats();
+
+        var healthScript = GetComponent<Health>();
+        if (healthScript != null && stats != null)
+        {
+            healthScript.InitHealth(stats.maxHealth);
+        }
+
+        Debug.Log($"{gameObject.name}: Складність оновлено");
+    }
+    void OnDestroy()
+    {
+        if (difficultyService != null)
+        {
+            difficultyService.OnDifficultyChanged -= UpdateStats;
+        }
+    }
     void PatrolLogic()
     {
         if (!agent.pathPending && agent.remainingDistance < 0.5f)

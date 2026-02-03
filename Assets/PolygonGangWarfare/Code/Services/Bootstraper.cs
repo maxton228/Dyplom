@@ -15,12 +15,25 @@ namespace InfimaGames.LowPolyShooterPack
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         public static void Initialize()
         {
-            //Initialize default service locator.
             ServiceLocator.Initialize();
-            
-            //Game Mode Service.
             ServiceLocator.Current.Register<IGameModeService>(new GameModeService());
-            
+
+            #region Difficulty Manager Service
+
+            var diffPrefab = Resources.Load<DifficultyManager>("DifficultyManager");
+
+            if (diffPrefab != null)
+            {
+                var diffInstance = Object.Instantiate(diffPrefab);
+                diffInstance.name = "Difficulty Manager";
+
+                Object.DontDestroyOnLoad(diffInstance);
+
+                ServiceLocator.Current.Register<IDifficultyService>(diffInstance);
+            }
+
+            #endregion
+
             #region Sound Manager Service
 
             //Create an object for the sound manager, and add the component!

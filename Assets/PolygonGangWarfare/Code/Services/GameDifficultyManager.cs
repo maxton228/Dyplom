@@ -1,44 +1,42 @@
 using UnityEngine;
-
-public class GameDifficultyManager : MonoBehaviour
+using System;
+public class DifficultyManager : MonoBehaviour, IDifficultyService
 {
     public enum Difficulty { Easy, Medium, Hard }
     public Difficulty currentDifficulty;
+    public event Action OnDifficultyChanged;
 
     [Header("Профілі")]
     public EnemyStats easyProfile;
     public EnemyStats mediumProfile;
     public EnemyStats hardProfile;
 
-    void Start()
+    public EnemyStats GetCurrentStats()
     {
-        ApplyDifficulty();
+        return currentDifficulty switch
+        {
+            Difficulty.Easy => easyProfile,
+            Difficulty.Hard => hardProfile,
+            _ => mediumProfile
+        };
     }
-
     public void SetDifficulty(int level)
     {
         currentDifficulty = (Difficulty)level;
-        ApplyDifficulty();
+        ApplyChanges();
     }
 
-    void ApplyDifficulty()
+    private void ApplyChanges()
     {
-        EnemyStats profileToUse = mediumProfile;
+        Debug.Log($"[Difficulty] Складність змінено на: {currentDifficulty}");
+        OnDifficultyChanged?.Invoke();
+    }
 
-        switch (currentDifficulty)
+    private void OnValidate()
+    {
+        if (Application.isPlaying)
         {
-            case Difficulty.Easy: profileToUse = easyProfile; break;
-            case Difficulty.Medium: profileToUse = mediumProfile; break;
-            case Difficulty.Hard: profileToUse = hardProfile; break;
+            ApplyChanges();
         }
-
-        TacticalEnemy[] enemies = FindObjectsOfType<TacticalEnemy>();
-
-        foreach (var enemy in enemies)
-        {
-            enemy.stats = profileToUse;
-            enemy.GetComponent<Health>().InitHealth(profileToUse.maxHealth);
-        }
-
     }
 }
