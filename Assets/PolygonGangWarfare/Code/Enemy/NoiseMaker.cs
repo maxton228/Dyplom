@@ -5,14 +5,12 @@ public class NoiseMaker : MonoBehaviour
     [Header("Debug")]
     public bool showDebugVisuals = true;
 
-    public void MakeSound(float radius)
+    public void MakeSound(float radius, bool isGunshot)
     {
-        if (radius <= 0) return;
-
-        TacticalEnemy[] enemies = FindObjectsOfType<TacticalEnemy>();
+        TacticalEnemy[] enemies = FindObjectsByType<TacticalEnemy>(FindObjectsSortMode.None);
         foreach (var enemy in enemies)
         {
-            enemy.HearNoise(transform.position, radius);
+            enemy.HearNoise(transform.position, radius, isGunshot);
         }
     }
 }

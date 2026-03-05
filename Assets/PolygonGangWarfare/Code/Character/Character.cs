@@ -320,7 +320,7 @@ namespace InfimaGames.LowPolyShooterPack
                     stepTimer = stepInterval;
                 }
 
-                if (noiseMaker != null) noiseMaker.MakeSound(noiseRadius);
+                if (noiseMaker != null) noiseMaker.MakeSound(noiseRadius, false);
             }
         }
 
@@ -437,7 +437,7 @@ namespace InfimaGames.LowPolyShooterPack
                     weaponNoise = 3f;  // Пістолет -> "Тихо" (чують тільки впритул)
                 }
 
-                noiseMaker.MakeSound(weaponNoise);
+                noiseMaker.MakeSound(weaponNoise, false);
             }
         }
 

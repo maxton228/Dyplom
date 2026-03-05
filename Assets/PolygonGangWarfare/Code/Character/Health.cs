@@ -36,23 +36,16 @@ public class Health : MonoBehaviour
 
         if (isPlayer)
         {
-            // якщо помер гравець - перезавантажуЇмо сцену (Game Over)
             Debug.Log("Game Over");
         }
         else
         {
-            // якщо помер ворог
-            // 1. ¬имикаЇмо мозок ≥ нав≥гац≥ю
             var ai = GetComponent<TacticalEnemy>();
             if (ai != null) ai.enabled = false;
 
             var nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
             if (nav != null) nav.enabled = false;
 
-            // 2. ¬микаЇмо ф≥зику (Ragdoll), €кщо Ї, або просто видал€Їмо
-            // Destroy(gameObject, 2f); // ¬идалити через 2 сек
-
-            // јбо просто падаЇмо на б≥к (простий вар≥ант смерт≥)
             transform.Rotate(-90, 0, 0);
             Destroy(gameObject, 5f);
         }

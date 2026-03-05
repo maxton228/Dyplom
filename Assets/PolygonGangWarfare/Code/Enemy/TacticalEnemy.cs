@@ -1,13 +1,15 @@
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections;
+using System.Collections.Generic; 
 using InfimaGames.LowPolyShooterPack;
+
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Rigidbody))]
-
+[RequireComponent(typeof(EnemyAwareness))]
 public class TacticalEnemy : MonoBehaviour
 {
     private IDifficultyService difficultyService;
+
     [Header("Зір")]
     [Range(0, 360)] public float viewAngle = 110f;
     public Transform eyePoint;
@@ -18,27 +20,49 @@ public class TacticalEnemy : MonoBehaviour
     public Transform[] patrolPoints;
 
     [Header("Налаштування Складності")]
-    public EnemyStats stats; 
+    public EnemyStats Stats;
 
     [Header("Налаштування")]
-    public Transform shootingPoint; 
+    public Transform shootingPoint;
     public float lostTime = 5f;
+    private float _visionTimer = 0f;
+    public float reactionThreshold = 0.2f;
 
-    public enum State { Patrol, Chase, Attack, Search }
-    [Header("Діагностика")]
-    public State currentState;
+    [Header("Просунутий Зір (New)")]
+    public LayerMask obstacleMask;
 
-    private NavMeshAgent agent;
+    public NavMeshAgent Agent { get; private set; }
+    public EnemyAwareness Awareness { get; private set; }
     private Rigidbody rb;
-    private Vector3 lastKnownPos;
-    private int patrolIndex = 0;
-    private Coroutine searchRoutine;
-    private float nextFireTime; 
+    private VisibilityTarget _playerVisibility;
+
+    private IEnemyState _currentState;
+
+    public PatrolState PatrolState { get; private set; }
+    public ChaseState ChaseState { get; private set; }
+    public AttackState AttackState { get; private set; }
+    public SearchState SearchState { get; private set; }
+
+    public Vector3 LastKnownTargetPos { get; set; }
+
+    void Awake()
+    {
+        Agent = GetComponent<NavMeshAgent>();
+        rb = GetComponent<Rigidbody>();
+        Awareness = GetComponent<EnemyAwareness>();
+
+        rb.isKinematic = true;
+
+        PatrolState = new PatrolState(this);
+        ChaseState = new ChaseState(this);
+        AttackState = new AttackState(this);
+        SearchState = new SearchState(this);
+    }
 
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        rb = GetComponent<Rigidbody>();
+        if (player != null)
+            _playerVisibility = player.GetComponent<VisibilityTarget>();
 
         difficultyService = ServiceLocator.Current.Get<IDifficultyService>();
 
@@ -48,111 +72,132 @@ public class TacticalEnemy : MonoBehaviour
             UpdateStats();
         }
 
-        rb.isKinematic = true;
-        currentState = State.Patrol;
-        GoToNextPatrolPoint();
+        Awareness.OnAlerted += () => {
+            ChangeState(AttackState);
+            NotifyAllies();
+        };
+
+        ChangeState(PatrolState);
     }
 
     void Update()
     {
-        if (stats == null)
+        if (Stats == null) return;
+        _currentState?.Update();
+
+        if (!Awareness.IsAlerted)
         {
-            Debug.LogError("Не призначено складність");
+            float visibility = CalculateVisibilityFactor();
+
+            if (visibility > 0)
+            {
+                LastKnownTargetPos = player.position;
+
+                float distToPlayer = Vector3.Distance(transform.position, player.position);
+                Vector3 dirToPlayer = (player.position - transform.position).normalized;
+                float angle = Vector3.Angle(transform.forward, dirToPlayer);
+
+                Awareness.ProcessVision(visibility, distToPlayer, Stats.visionRange, angle);
+            }
+            else
+            {
+                Awareness.ProcessVision(0, 0, 0, 0);
+            }
+
+            if (Awareness.currentAwareness >= 0.2f)
+            {
+                if (_currentState == PatrolState)
+                {
+                    ChangeState(ChaseState);
+                }
+            }
+            else if (Awareness.currentAwareness < 0.05f && _currentState == ChaseState)
+            {
+                ChangeState(SearchState);
+            }
+        }
+    }
+
+    public void ChangeState(IEnemyState newState)
+    {
+        if (Awareness.IsAlerted && newState == PatrolState) return;
+
+        if (_currentState == newState) return;
+
+        _currentState?.Exit();
+        _currentState = newState;
+        _currentState.Enter();
+    }
+
+    public void HearNoise(Vector3 noisePosition, float noiseRadius, bool isLoudGunshot)
+    {
+        float dist = Vector3.Distance(transform.position, noisePosition);
+        if (dist > noiseRadius) return;
+
+        if (isLoudGunshot)
+        {
+            LastKnownTargetPos = noisePosition;
+            Awareness.TriggerInstantAlert();
+
+            if (_currentState != AttackState)
+            {
+                ChangeState(AttackState);
+            }
             return;
         }
 
-        bool canSeePlayer = CheckVision();
-
-        if (canSeePlayer)
+        if (Awareness.IsAlerted)
         {
-            lastKnownPos = player.position;
-
-            float dist = Vector3.Distance(transform.position, player.position);
-            if (dist <= stats.visionRange * 0.7f)
-                ChangeState(State.Attack);
-            else
-                ChangeState(State.Chase);
+            LastKnownTargetPos = noisePosition;
+            if (_currentState == SearchState)
+            {
+                Agent.SetDestination(noisePosition);
+            }
         }
         else
         {
-            if (currentState == State.Chase || currentState == State.Attack)
+            Awareness.AddSuspicion(0.3f);
+            LastKnownTargetPos = noisePosition;
+
+            if (_currentState != SearchState && _currentState != AttackState)
             {
-                ChangeState(State.Search);
+                ChangeState(SearchState);
+            }
+            else if (_currentState == SearchState)
+            {
+                Agent.SetDestination(noisePosition);
+            }
+        }
+    }
+
+    float CalculateVisibilityFactor()
+    {
+        if (player == null || Stats == null || _playerVisibility == null) return 0f;
+
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        if (distToPlayer > Stats.visionRange) return 0f;
+
+        Vector3 dirToPlayer = (player.position - transform.position).normalized;
+        float angleToPlayer = Vector3.Angle(transform.forward, dirToPlayer);
+        if (angleToPlayer > viewAngle / 2) return 0f;
+
+        List<Vector3> points = _playerVisibility.GetActivePoints();
+        int visibleCount = 0;
+
+        Vector3 eyePos = eyePoint != null ? eyePoint.position : transform.position + Vector3.up * 1.6f;
+
+        foreach (var point in points)
+        {
+            if (!Physics.Linecast(eyePos, point, obstacleMask))
+            {
+                visibleCount++;
             }
         }
 
-        switch (currentState)
-        {
-            case State.Patrol:
-                PatrolLogic();
-                break;
-            case State.Chase:
-                ChaseLogic();
-                break;
-            case State.Attack:
-                AttackLogic();
-                break;
-            case State.Search:
-                break;
-        }
+        return (float)visibleCount / points.Count;
     }
 
-    void UpdateStats()
-    {
-        if (difficultyService == null) return;
-
-        stats = difficultyService.GetCurrentStats();
-
-        var healthScript = GetComponent<Health>();
-        if (healthScript != null && stats != null)
-        {
-            healthScript.InitHealth(stats.maxHealth);
-        }
-
-        Debug.Log($"{gameObject.name}: Складність оновлено");
-    }
-    void OnDestroy()
-    {
-        if (difficultyService != null)
-        {
-            difficultyService.OnDifficultyChanged -= UpdateStats;
-        }
-    }
-    void PatrolLogic()
-    {
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
-        {
-            GoToNextPatrolPoint();
-        }
-    }
-
-    void ChaseLogic()
-    {
-        agent.isStopped = false;
-        agent.SetDestination(player.position);
-    }
-
-    void AttackLogic()
-    {
-        agent.isStopped = true;
-
-        if (player != null)
-        {
-            Vector3 dir = (player.position - transform.position).normalized;
-            dir.y = 0;
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 5f);
-        }
-
-        if (Time.time >= nextFireTime)
-        {
-            Shoot();
-            nextFireTime = Time.time + stats.fireRate;
-        }
-
-        Debug.DrawRay(transform.position + Vector3.up, transform.forward * stats.visionRange, Color.red);
-    }
-
-    void Shoot()
+    public void PerformShoot()
     {
         if (shootingPoint == null)
         {
@@ -162,128 +207,64 @@ public class TacticalEnemy : MonoBehaviour
 
         Vector3 direction = (player.position + Vector3.up * 1.5f) - shootingPoint.position;
 
-        float xError = Random.Range(-stats.accuracyError, stats.accuracyError);
-        float yError = Random.Range(-stats.accuracyError, stats.accuracyError);
+        float xError = Random.Range(-Stats.accuracyError, Stats.accuracyError);
+        float yError = Random.Range(-Stats.accuracyError, Stats.accuracyError);
         direction += new Vector3(xError, yError, 0);
 
         RaycastHit hit;
-        if (Physics.Raycast(shootingPoint.position, direction, out hit, stats.visionRange))
+        if (Physics.Raycast(shootingPoint.position, direction, out hit, Stats.visionRange))
         {
             if (hit.transform.CompareTag("Player"))
             {
                 var targetHealth = hit.transform.GetComponent<Health>();
-                if (targetHealth != null) targetHealth.TakeDamage(stats.damage);
+                if (targetHealth != null)
+                {
+                    targetHealth.TakeDamage(Stats.damage);
+                }
             }
 
             Debug.DrawLine(shootingPoint.position, hit.point, Color.yellow, 0.1f);
         }
     }
 
-    void StartSearch()
+    void UpdateStats()
     {
-        Debug.Log("Втратив гравця! Починаю пошук...");
-        agent.isStopped = false;
-        agent.SetDestination(lastKnownPos);
+        if (difficultyService == null) return;
 
-        if (searchRoutine != null) StopCoroutine(searchRoutine);
-        searchRoutine = StartCoroutine(SearchTimer());
-    }
+        Stats = difficultyService.GetCurrentStats();
 
-    void EndSearch()
-    {
-        ChangeState(State.Patrol);
-    }
-
-    IEnumerator SearchTimer()
-    {
-        yield return new WaitForSeconds(lostTime);
-        EndSearch();
-    }
-
-    void ChangeState(State newState)
-    {
-        if (currentState == newState) return;
-
-        if (currentState == State.Search)
+        var healthScript = GetComponent<Health>();
+        if (healthScript != null && Stats != null) 
         {
-            if (searchRoutine != null) StopCoroutine(searchRoutine);
-        }
-
-        currentState = newState;
-
-        if (currentState == State.Search)
-        {
-            StartSearch();
-        }
-        else if (currentState == State.Patrol)
-        {
-            GoToNextPatrolPoint();
+            healthScript.InitHealth(Stats.maxHealth); 
         }
     }
 
-    public void HearNoise(Vector3 noisePosition, float noiseRadius)
+    void OnDestroy()
     {
-        if (currentState == State.Attack || currentState == State.Chase) return;
-
-        float dist = Vector3.Distance(transform.position, noisePosition);
-
-        if (dist > noiseRadius) return;
-
-        Debug.Log($"Почув шум! (Радіус: {noiseRadius}, Дистанція: {dist})");
-
-        lastKnownPos = noisePosition;
-        ChangeState(State.Search);
-    }
-
-    void GoToNextPatrolPoint()
-    {
-        if (patrolPoints.Length == 0) return;
-        agent.isStopped = false;
-        agent.SetDestination(patrolPoints[patrolIndex].position);
-        patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
-    }
-
-    bool CheckVision()
-    {
-        if (player == null || stats == null) return false;
-
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
-
-        if (distToPlayer > stats.visionRange) return false;
-
-        Vector3 dirToPlayer = (player.position - transform.position).normalized;
-        float angleToPlayer = Vector3.Angle(transform.forward, dirToPlayer);
-
-        if (angleToPlayer > viewAngle / 2) return false;
-
-        Vector3 origin = eyePoint != null ? eyePoint.position : transform.position + Vector3.up * 1.6f;
-        Vector3 target = player.position + Vector3.up * 1.5f;
-        Vector3 rayDirection = (target - origin).normalized;
-
-        RaycastHit hit;
-        if (Physics.Raycast(origin, rayDirection, out hit, stats.visionRange, visionMask))
+        if (difficultyService != null)
         {
-            if (hit.transform.CompareTag("Player"))
-            {
-                return true;
-            }
+            difficultyService.OnDifficultyChanged -= UpdateStats;
         }
+    }
 
-        return false;
+    public bool CanSeePlayer()
+    {
+        return CalculateVisibilityFactor() > 0;
     }
 
     void OnDrawGizmosSelected()
     {
-        if (stats == null) return;
+        if (Stats == null) return;
 
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, stats.visionRange);
+        Gizmos.DrawWireSphere(transform.position, Stats.visionRange);
 
         Vector3 viewAngleA = DirFromAngle(-viewAngle / 2, false);
         Vector3 viewAngleB = DirFromAngle(viewAngle / 2, false);
 
-        Gizmos.DrawLine(transform.position, transform.position + viewAngleA * stats.visionRange);
-        Gizmos.DrawLine(transform.position, transform.position + viewAngleB * stats.visionRange);
+        Gizmos.DrawLine(transform.position, transform.position + viewAngleA * Stats.visionRange); 
+        Gizmos.DrawLine(transform.position, transform.position + viewAngleB * Stats.visionRange); 
     }
 
     public Vector3 DirFromAngle(float angleInDegrees, bool angleIsGlobal)
@@ -293,5 +274,35 @@ public class TacticalEnemy : MonoBehaviour
             angleInDegrees += transform.eulerAngles.y;
         }
         return new Vector3(Mathf.Sin(angleInDegrees * Mathf.Deg2Rad), 0, Mathf.Cos(angleInDegrees * Mathf.Deg2Rad));
+    }
+
+    public void AlertFromAlly(Vector3 targetPos)
+    {
+        LastKnownTargetPos = targetPos;
+
+        if (!Awareness.IsAlerted)
+        {
+            Awareness.TriggerInstantAlert();
+        }
+
+        if (_currentState != AttackState)
+        {
+            ChangeState(AttackState);
+        }
+    }
+    private void NotifyAllies()
+    {
+        var allEnemies = EnemyAwareness.AllEnemies;
+        foreach (var enemyAwareness in allEnemies)
+        {
+            if (enemyAwareness == null) continue;
+
+            var ally = enemyAwareness.GetComponent<TacticalEnemy>();
+
+            if (ally != null && ally != this && !ally.Awareness.IsAlerted)
+            {
+                ally.AlertFromAlly(player.position);
+            }
+        }
     }
 }
