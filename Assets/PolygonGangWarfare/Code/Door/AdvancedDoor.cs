@@ -8,7 +8,7 @@ public class AdvancedDoor: MonoBehaviour
     [SerializeField] private bool invertRotation = false;
 
     [Header("UI")]
-    [SerializeField] private GameObject interactionUI; // Твій Canvas
+    [SerializeField] private GameObject interactionUI;
 
     [Header("Бот")]
     [SerializeField] private string botTag = "Bot";
@@ -17,7 +17,6 @@ public class AdvancedDoor: MonoBehaviour
     private float targetAngle = 0f;
     private bool isDragging = false;
 
-    // Таймер для зникання кнопки
     private float lastLookTime = -1f;
 
     void Start()

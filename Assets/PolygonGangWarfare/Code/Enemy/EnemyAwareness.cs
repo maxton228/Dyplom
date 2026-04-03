@@ -19,31 +19,24 @@ public class EnemyAwareness : MonoBehaviour
     {
         if (IsAlerted) return;
 
-        if (visibilityFactor > 0.05f) // Зменшив поріг, щоб ворог був уважнішим
+        if (visibilityFactor > 0.05f)
         {
-            // 1. Дистанція: використовуємо квадрат відстані (експоненціально)
-            // Чим ближче гравець, тим швидше зростає підозра
             float distRatio = Mathf.Clamp01(distance / maxRange);
             float distanceWeight = Mathf.Lerp(2.0f, 0.1f, distRatio * distRatio);
 
-            // 2. Периферійний зір: у центрі погляду (0 градусів) помічають швидше
-            // Використовуємо косинус кута для плавного згасання уваги до країв FOV
             float angleWeight = Mathf.Cos(angleToPlayer * Mathf.Deg2Rad);
-            angleWeight = Mathf.Max(0.2f, angleWeight); // Мінімальна увага навіть боком
+            angleWeight = Mathf.Max(0.2f, angleWeight);
 
-            // 3. Бонус за близькість: якщо в упор - множимо швидкість
             if (distance < instantDetectionRange)
             {
                 distanceWeight *= 4f;
             }
 
-            // Розрахунок приросту
             float increase = detectionSpeed * visibilityFactor * distanceWeight * angleWeight * Time.deltaTime;
             currentAwareness += increase;
         }
         else
         {
-            // Якщо гравець сховався, шкала падає не миттєво (ефект "що це було?")
             currentAwareness -= decaySpeed * Time.deltaTime;
         }
 

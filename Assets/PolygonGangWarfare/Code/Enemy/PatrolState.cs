@@ -12,8 +12,10 @@ public class PatrolState : IEnemyState
 
     public void Enter()
     {
+        _enemy.Agent.speed = 1.5f;
         _enemy.Agent.isStopped = false;
         GoToNextPoint();
+
     }
 
     public void Update()

@@ -9,13 +9,11 @@ public class PlayerInteraction : MonoBehaviour
     [Header("Дальність")]
     [SerializeField] private float doorDistance = 2.5f;
     [SerializeField] private float itemDistance = 3.0f;
-    [SerializeField] private float itemSphereRadius = 0.3f; // Радіус "плями" для предметів
+    [SerializeField] private float itemSphereRadius = 0.3f;
 
-    // Поточні цілі
     private AdvancedDoor currentDoor;
     private ItemPickup currentItem;
 
-    // Змінні дверей
     private AdvancedDoor draggingDoor;
     private bool isHoldingKey = false;
     private float holdTimer = 0f;
@@ -34,8 +32,7 @@ public class PlayerInteraction : MonoBehaviour
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
         RaycastHit hit;
 
-        // 1. ШУКАЄМО ПРЕДМЕТИ (SphereCast - прощає неточність)
-        currentItem = null; // Скидаємо, якщо нічого не знайшли - предмет сам вимкне UI по таймеру
+        currentItem = null;
 
         if (Physics.SphereCast(ray, itemSphereRadius, out hit, itemDistance, ~ignoreLayers))
         {
@@ -43,11 +40,10 @@ public class PlayerInteraction : MonoBehaviour
             if (item != null)
             {
                 currentItem = item;
-                currentItem.ShowPrompt(); // "Пінгуємо" предмет -> він покаже F
+                currentItem.ShowPrompt();
             }
         }
 
-        // 2. ШУКАЄМО ДВЕРІ (Raycast - точність)
         currentDoor = null;
 
         if (Physics.Raycast(ray, out hit, doorDistance, ~ignoreLayers))
@@ -56,14 +52,13 @@ public class PlayerInteraction : MonoBehaviour
             if (door != null)
             {
                 currentDoor = door;
-                currentDoor.ShowPrompt(); // "Пінгуємо" двері
+                currentDoor.ShowPrompt();
             }
         }
     }
 
     void HandleInput()
     {
-        // ПРІОРИТЕТ 1: Підняти предмет (якщо не тягнемо двері)
         if (Input.GetKeyDown(KeyCode.F) && currentItem != null && !isHoldingKey && draggingDoor == null)
         {
             currentItem.OnInteract();
@@ -71,7 +66,6 @@ public class PlayerInteraction : MonoBehaviour
             return;
         }
 
-        // ПРІОРИТЕТ 2: Двері
         if (Input.GetKeyDown(KeyCode.F) && currentDoor != null)
         {
             draggingDoor = currentDoor;
@@ -80,7 +74,6 @@ public class PlayerInteraction : MonoBehaviour
             draggingDoor.BeginDrag();
         }
 
-        // Логіка тягання дверей...
         if (Input.GetKey(KeyCode.F) && isHoldingKey && draggingDoor != null)
         {
             holdTimer += Time.deltaTime;

@@ -11,6 +11,7 @@ public class ChaseState : IEnemyState
 
     public void Enter()
     {
+        _enemy.Agent.speed = 3.5f;
         _enemy.Agent.isStopped = false;
     }
 

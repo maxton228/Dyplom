@@ -1,5 +1,6 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using System.Collections;
+
 public class Health : MonoBehaviour
 {
     [Header("Налаштування")]
@@ -21,6 +22,15 @@ public class Health : MonoBehaviour
         currentHealth -= amount;
         Debug.Log($"{gameObject.name} отримав поранення! Залишилось: {currentHealth}");
 
+        if (!isPlayer)
+        {
+            var ai = GetComponent<TacticalEnemy>();
+            if (ai != null)
+            {
+                ai.OnTookDamage();
+            }
+        }
+
         if (currentHealth <= 0)
         {
             Die();
@@ -40,16 +50,48 @@ public class Health : MonoBehaviour
         }
         else
         {
-            var ai = GetComponent<TacticalEnemy>();
-            if (ai != null) ai.enabled = false;
+            if (TryGetComponent<TacticalEnemy>(out var ai)) ai.enabled = false;
+            if (TryGetComponent<UnityEngine.AI.NavMeshAgent>(out var nav)) nav.enabled = false;
+            if (TryGetComponent<EnemyAwareness>(out var awareness)) awareness.enabled = false;
 
-            var nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
-            if (nav != null) nav.enabled = false;
+            var animator = GetComponent<Animator>();
+            if (animator != null)
+            {
+                int randomDeath = UnityEngine.Random.Range(0, 2);
+                animator.SetInteger("DeathIndex", randomDeath);
+                animator.SetTrigger("Die");
+            }
 
-            transform.Rotate(-90, 0, 0);
-            Destroy(gameObject, 5f);
+            StartCoroutine(CleanUpCorpseRoutine());
         }
     }
+
+    private IEnumerator CleanUpCorpseRoutine()
+    {
+        yield return new WaitForSeconds(4f);
+
+        if (TryGetComponent<EnemyAnimationLink>(out var animLink)) Destroy(animLink);
+
+        if (TryGetComponent<TacticalEnemy>(out var ai)) Destroy(ai);
+        if (TryGetComponent<EnemyAwareness>(out var awareness)) Destroy(awareness);
+        if (TryGetComponent<UnityEngine.AI.NavMeshAgent>(out var nav)) Destroy(nav);
+
+        if (TryGetComponent<Rigidbody>(out var rb)) Destroy(rb);
+
+        if (TryGetComponent<Collider>(out var col)) Destroy(col);
+
+        if (TryGetComponent<Animator>(out var anim)) Destroy(anim);
+
+        Hitbox[] hitboxes = GetComponentsInChildren<Hitbox>();
+        foreach (var hb in hitboxes)
+        {
+            if (hb.TryGetComponent<Collider>(out var boneCol)) Destroy(boneCol);
+            Destroy(hb);
+        }
+
+        Destroy(this);
+    }
+
     public void InitHealth(float value)
     {
         maxHealth = value;

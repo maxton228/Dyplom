@@ -7,7 +7,6 @@ public class AttackState : IEnemyState
     private float _repathTimer;
 
     private float _lastTimeSeen;
-    private float _reactionDelay = 1.0f;
 
     public AttackState(TacticalEnemy enemy)
     {
@@ -17,20 +16,27 @@ public class AttackState : IEnemyState
     public void Enter()
     {
         Debug.Log("ÐÅÆÈÌ Â²×ÍÎ¯ ÀÒÀÊÈ: ÀÊÒÈÂÎÂÀÍÎ");
-        _enemy.Agent.isStopped = false;
-        _enemy.Agent.speed = 3.5f;
         _lastTimeSeen = Time.time;
     }
 
     public void Update()
     {
         bool canSeeNow = _enemy.CanSeePlayer();
+        float distanceToPlayer = Vector3.Distance(_enemy.transform.position, _enemy.player.position);
 
         if (canSeeNow)
         {
             _enemy.LastKnownTargetPos = _enemy.player.position;
             _lastTimeSeen = Time.time;
-            CombatLogic();
+
+            if (distanceToPlayer > _enemy.maxShootingRange)
+            {
+                HuntingLogic();
+            }
+            else
+            {
+                CombatLogic();
+            }
         }
         else
         {
@@ -49,11 +55,21 @@ public class AttackState : IEnemyState
     {
         _enemy.Agent.isStopped = true;
 
+        _enemy.SetAiming(true);
+
         Vector3 dir = (_enemy.LastKnownTargetPos - _enemy.transform.position).normalized;
         dir.y = 0;
         if (dir != Vector3.zero)
         {
             _enemy.transform.rotation = Quaternion.Slerp(_enemy.transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 10f);
+        }
+
+        if (_enemy.isReloading) return;
+
+        if (_enemy.currentAmmo <= 0)
+        {
+            _enemy.ReloadWeapon();
+            return;
         }
 
         if (Time.time >= _nextFireTime)
@@ -67,19 +83,18 @@ public class AttackState : IEnemyState
     {
         _enemy.Agent.isStopped = false;
 
+        _enemy.SetAiming(false);
+
         if (Time.time > _repathTimer)
         {
             _repathTimer = Time.time + 0.2f;
             _enemy.Agent.SetDestination(_enemy.LastKnownTargetPos);
-        }
-
-        if (!_enemy.Agent.pathPending && _enemy.Agent.remainingDistance < 1f)
-        {
         }
     }
 
     public void Exit()
     {
         _enemy.Agent.isStopped = false;
+        _enemy.SetAiming(false);
     }
 }

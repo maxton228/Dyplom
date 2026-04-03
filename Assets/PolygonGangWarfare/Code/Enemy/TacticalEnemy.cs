@@ -9,7 +9,7 @@ using InfimaGames.LowPolyShooterPack;
 public class TacticalEnemy : MonoBehaviour
 {
     private IDifficultyService difficultyService;
-
+    
     [Header("Зір")]
     [Range(0, 360)] public float viewAngle = 110f;
     public Transform eyePoint;
@@ -24,12 +24,25 @@ public class TacticalEnemy : MonoBehaviour
 
     [Header("Налаштування")]
     public Transform shootingPoint;
+    public EnemyMuzzleEffect muzzleEffect;
     public float lostTime = 5f;
     private float _visionTimer = 0f;
     public float reactionThreshold = 0.2f;
-
+    [Header("Таймінги стрільби (Паузи)")]
+    public float minShootPause = 0.8f;
+    public float maxShootPause = 2.0f;
+    private float _nextShootTime = 0f;
     [Header("Просунутий Зір (New)")]
     public LayerMask obstacleMask;
+
+    [Header("Бойові налаштування")]
+    public float maxShootingRange = 30f;
+
+    [Header("Зброя та Патрони")]
+    public int maxAmmo = 20;
+    public float reloadTime = 3.2f;
+    public int currentAmmo { get; private set; }
+    public bool isReloading { get; private set; }
 
     public NavMeshAgent Agent { get; private set; }
     public EnemyAwareness Awareness { get; private set; }
@@ -42,7 +55,7 @@ public class TacticalEnemy : MonoBehaviour
     public ChaseState ChaseState { get; private set; }
     public AttackState AttackState { get; private set; }
     public SearchState SearchState { get; private set; }
-
+    private Animator _animator;
     public Vector3 LastKnownTargetPos { get; set; }
 
     void Awake()
@@ -50,9 +63,9 @@ public class TacticalEnemy : MonoBehaviour
         Agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
         Awareness = GetComponent<EnemyAwareness>();
-
+        currentAmmo = maxAmmo;
         rb.isKinematic = true;
-
+        _animator = GetComponent<Animator>();
         PatrolState = new PatrolState(this);
         ChaseState = new ChaseState(this);
         AttackState = new AttackState(this);
@@ -196,17 +209,41 @@ public class TacticalEnemy : MonoBehaviour
 
         return (float)visibleCount / points.Count;
     }
+    public void ReloadWeapon()
+    {
+        if (isReloading) return;
+
+        isReloading = true;
+        _animator.SetTrigger("Reload");
+        Debug.Log("Перезаряджаю!");
+
+        StartCoroutine(ReloadRoutine());
+    }
+
+    private System.Collections.IEnumerator ReloadRoutine()
+    {
+        yield return new WaitForSeconds(reloadTime);
+        currentAmmo = maxAmmo;
+        isReloading = false;
+        Debug.Log("Готово! Патронів: " + currentAmmo);
+    }
 
     public void PerformShoot()
     {
-        if (shootingPoint == null)
+        if (Time.time < _nextShootTime || isReloading) return;
+
+        if (shootingPoint == null) return;
+
+        _animator.SetTrigger("Shoot");
+
+        if (muzzleEffect != null)
         {
-            Debug.LogError("Не призначено Shooting Point у ворога!");
-            return;
+            muzzleEffect.PlayEffect();
         }
 
-        Vector3 direction = (player.position + Vector3.up * 1.5f) - shootingPoint.position;
+        currentAmmo--;
 
+        Vector3 direction = (player.position + Vector3.up * 1.5f) - shootingPoint.position;
         float xError = Random.Range(-Stats.accuracyError, Stats.accuracyError);
         float yError = Random.Range(-Stats.accuracyError, Stats.accuracyError);
         direction += new Vector3(xError, yError, 0);
@@ -217,14 +254,24 @@ public class TacticalEnemy : MonoBehaviour
             if (hit.transform.CompareTag("Player"))
             {
                 var targetHealth = hit.transform.GetComponent<Health>();
-                if (targetHealth != null)
-                {
-                    targetHealth.TakeDamage(Stats.damage);
-                }
+                if (targetHealth != null) targetHealth.TakeDamage(Stats.damage);
             }
-
             Debug.DrawLine(shootingPoint.position, hit.point, Color.yellow, 0.1f);
         }
+
+        float burstDuration = 0f;
+        if (muzzleEffect != null)
+        {
+            burstDuration = muzzleEffect.burstCount * muzzleEffect.burstInterval;
+        }
+
+        float randomPause = Random.Range(minShootPause, maxShootPause);
+        _nextShootTime = Time.time + burstDuration + randomPause;
+    }
+
+    public void SetAiming(bool state)
+    {
+        _animator.SetBool("IsAiming", state);
     }
 
     void UpdateStats()
@@ -251,6 +298,24 @@ public class TacticalEnemy : MonoBehaviour
     public bool CanSeePlayer()
     {
         return CalculateVisibilityFactor() > 0;
+    }
+    public void OnTookDamage()
+    {
+        if (player != null)
+        {
+            LastKnownTargetPos = player.position;
+        }
+
+        if (!Awareness.IsAlerted)
+        {
+            Awareness.TriggerInstantAlert();
+        }
+
+        if (_currentState != AttackState)
+        {
+            ChangeState(AttackState);
+            NotifyAllies();
+        }
     }
 
     void OnDrawGizmosSelected()
