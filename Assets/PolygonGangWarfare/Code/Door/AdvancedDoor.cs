@@ -1,6 +1,7 @@
 using UnityEngine;
+using UnityEngine.Events;
 
-public class AdvancedDoor: MonoBehaviour
+public class AdvancedDoor : MonoBehaviour
 {
     [Header("Налаштування")]
     [SerializeField] private float maxAngle = 90f;
@@ -12,6 +13,11 @@ public class AdvancedDoor: MonoBehaviour
 
     [Header("Бот")]
     [SerializeField] private string botTag = "Bot";
+
+    [Header("Замок та Мінігра")]
+    public bool isLocked = false;
+    [SerializeField] private MinigameController minigameController;
+
 
     private float currentAngle = 0f;
     private float targetAngle = 0f;
@@ -46,6 +52,15 @@ public class AdvancedDoor: MonoBehaviour
 
     public void ToggleDoor(Vector3 playerPosition)
     {
+        if (isLocked)
+        {
+            if (MinigameController.Instance != null)
+            {
+                MinigameController.Instance.StartLockpicking(this);
+            }
+            return;
+        }
+
         if (Mathf.Abs(targetAngle) > 1f) targetAngle = 0f;
         else
         {
@@ -57,18 +72,34 @@ public class AdvancedDoor: MonoBehaviour
         }
     }
 
-    public void BeginDrag() => isDragging = true;
+    public void BeginDrag()
+    {
+        if (isLocked)
+        {
+            if (MinigameController.Instance != null)
+            {
+                MinigameController.Instance.StartLockpicking(this);
+            }
+            return;
+        }
+
+        isDragging = true;
+    }
 
     public void OnDrag(float mouseDelta)
     {
+        if (isLocked) return;
+
         float multiplier = invertRotation ? -1.5f : 1.5f;
         currentAngle -= mouseDelta * multiplier;
         currentAngle = Mathf.Clamp(currentAngle, -maxAngle, maxAngle);
         transform.localRotation = Quaternion.Euler(0, currentAngle, 0);
         targetAngle = currentAngle;
     }
+
     private void OnTriggerEnter(Collider other)
     {
+
         if (other.CompareTag(botTag) && !isDragging)
         {
             Vector3 directionToBot = other.transform.position - transform.position;
@@ -78,6 +109,7 @@ public class AdvancedDoor: MonoBehaviour
             targetAngle = angle;
         }
     }
+
     public void EndDrag()
     {
         isDragging = false;
@@ -87,10 +119,17 @@ public class AdvancedDoor: MonoBehaviour
     public void ShowPrompt()
     {
         lastLookTime = Time.time;
+
     }
 
     private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag(botTag) && !isDragging) targetAngle = 0f;
+    }
+
+    public void Unlock()
+    {
+        isLocked = false;
+        Debug.Log("Замок зламано відмичкою!");
     }
 }
