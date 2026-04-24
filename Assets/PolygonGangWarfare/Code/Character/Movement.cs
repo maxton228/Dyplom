@@ -13,7 +13,10 @@ namespace InfimaGames.LowPolyShooterPack
         [SerializeField] private float jumpForce = 5.0f;
         [SerializeField] private float crouchHeight = 1.0f;
         [SerializeField] private float defaultHeight = 2.0f;
-
+        [Header("Dragging Settings")]
+        public bool isDraggingCorpse = false;
+        public float draggingMultiplier = 1.0f;
+        public float mouseSensitivity = 1.0f;
         [Header("Audio Clips")]
         
         [Tooltip("The audio clip that is played while walking.")]
@@ -35,8 +38,7 @@ namespace InfimaGames.LowPolyShooterPack
         [Tooltip("How fast the player moves while running."), SerializeField]
         private float speedRunning = 9.0f;
         [SerializeField]
-        private float speedWalking = 5.0f;
-
+        public float speedWalking = 5.0f;
 
         [Header("Audio Settings")]
         [SerializeField] private float volumeWalk = 1f;   // Гучність ходьби
@@ -146,9 +148,8 @@ namespace InfimaGames.LowPolyShooterPack
             audioSourceFootsteps.clip = audioClipWalking;
             audioSourceFootsteps.loop = true;
 
-            // 2. Створюємо другий динамік для ефектів (щоб кроки його не перебивали)
             audioSourceFX = gameObject.AddComponent<AudioSource>();
-            audioSourceFX.spatialBlend = 1f; // Робимо звук 3D
+            audioSourceFX.spatialBlend = 1f;
             audioSourceFX.playOnAwake = false;
             audioSourceFX.reverbZoneMix = 0f;
         }
@@ -180,32 +181,23 @@ namespace InfimaGames.LowPolyShooterPack
                 jumpBlockTimer -= Time.fixedDeltaTime;
             }
 
-            // 2. ЛОГІКА ПОВІТРЯ
             if (!grounded)
             {
                 airTime += Time.fixedDeltaTime;
                 fallSpeed = rigidBody.linearVelocity.y;
             }
 
-            // 2. ПРИЗЕМЛЕННЯ
             if (!wasGrounded && grounded)
             {
-                // ПОДВІЙНА ПЕРЕВІРКА:
-                // 1. AirTime > 0.2f (щоб не рахувати дрібні стики полігонів)
-                // 2. fallSpeed < -4.0f (Тільки якщо ми падали швидко!)
-                //    При бігу швидкість падіння десь -0.5...-1.0, тому воно не спрацює.
-                //    При стрибку вона буде десь -6...-10.
 
                 if (airTime > 0.2f && fallSpeed < -0.6f)
                 {
-                    // А) Звук
                     if (audioClipLand != null)
                     {
                         audioSourceFX.volume = 1.0f;
                         audioSourceFX.PlayOneShot(audioClipLand);
                     }
 
-                    // Б) Нахил камери (Drop)
                     if (playerCharacter is Character characterScript)
                     {
                         characterScript.PlayLandingMotion(0.04f);
@@ -214,7 +206,6 @@ namespace InfimaGames.LowPolyShooterPack
                     jumpBlockTimer = 0.25f;
                 }
 
-                // Скидаємо лічильники
                 airTime = 0f;
                 fallSpeed = 0f;
             }
@@ -229,7 +220,6 @@ namespace InfimaGames.LowPolyShooterPack
         /// Moves the camera to the character, processes jumping and plays sounds every frame.
         protected override  void Update()
         {
-            //Get the equipped weapon!
             equippedWeapon = playerCharacter.GetInventory().GetEquipped();
             PlayFootstepSounds();
             if (grounded && rigidBody.linearVelocity.sqrMagnitude > 0.1f)
@@ -238,7 +228,7 @@ namespace InfimaGames.LowPolyShooterPack
                 if (noiseTimer <= 0)
                 {
                     CheckNoiseEmission();
-                    noiseTimer = noiseCheckInterval; // Скидаємо таймер
+                    noiseTimer = noiseCheckInterval;
                 }
             }
         }
@@ -249,37 +239,32 @@ namespace InfimaGames.LowPolyShooterPack
         private void CheckNoiseEmission()
         {
             float currentRadius = noiseRadiusWalk;
-            float currentVolume = 1.0f; // Умовна "сила" звуку для AI
+            float currentVolume = 1.0f;
 
             if (playerCharacter.IsRunning())
             {
                 currentRadius = noiseRadiusRun;
-                currentVolume = 2.0f; // Біг дуже помітний
+                currentVolume = 2.0f;
             }
             else if (playerCharacter is Character character && character.IsCrouching())
             {
                 currentRadius = noiseRadiusCrouch;
-                currentVolume = 0.3f; // Присід майже непомітний
+                currentVolume = 0.3f;
             }
 
-            // Відправляємо сигнал
             EmitNoise(currentRadius, currentVolume);
         }
 
-        // Головний метод, який "кричить" ворогам
         private void EmitNoise(float radius, float volume)
         {
-            // Знаходимо всі колайдери навколо в радіусі шуму
             Collider[] hitColliders = Physics.OverlapSphere(transform.position, radius);
 
             foreach (var hitCollider in hitColliders)
             {
-                // Шукаємо на об'єкті скрипт ворога
                 StealthAgent enemy = hitCollider.GetComponent<StealthAgent>();
 
                 if (enemy != null)
                 {
-                    // Якщо знайшли - кажемо йому "Я тут!"
                     enemy.RegisterNoise(transform.position, volume);
                 }
             }
@@ -290,11 +275,10 @@ namespace InfimaGames.LowPolyShooterPack
             Vector2 frameInput = playerCharacter.GetInputMovement();
             var movement = new Vector3(frameInput.x, 0.0f, frameInput.y);
 
-            if (playerCharacter.IsRunning())
-                movement *= speedRunning;
-            else
-                movement *= speedWalking;
+            float currentSpeed = playerCharacter.IsRunning() ? speedRunning : speedWalking;
 
+
+            movement *= currentSpeed;
             movement = transform.TransformDirection(movement);
             #endregion
 
@@ -308,13 +292,11 @@ namespace InfimaGames.LowPolyShooterPack
 
             float currentYVelocity = rigidBody.linearVelocity.y;
 
-            // СТРИБОК
             if (grounded && (playerCharacter as Character).IsJumping() && jumpBlockTimer <= 0)
             {
                 currentYVelocity = jumpForce;
                 grounded = false;
 
-                // Звук стрибка (через ОКРЕМИЙ канал)
                 if (audioClipJump != null)
                 {
                     audioSourceFX.PlayOneShot(audioClipJump);
@@ -353,7 +335,7 @@ namespace InfimaGames.LowPolyShooterPack
                 else
                 {
                     audioSourceFootsteps.volume = volumeWalk;
-                    audioSourceFootsteps.pitch = pitchWalk;   // Нормально
+                    audioSourceFootsteps.pitch = pitchWalk; 
                 }
 
                 if (!audioSourceFootsteps.isPlaying)
@@ -361,7 +343,6 @@ namespace InfimaGames.LowPolyShooterPack
             }
             else if (audioSourceFootsteps.isPlaying)
             {
-                // Це тепер зупиняє тільки кроки! Приземлення грає далі.
                 audioSourceFootsteps.Pause();
             }
         }

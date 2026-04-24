@@ -54,7 +54,7 @@ public class Projectile : MonoBehaviour
             Health targetHealth = collision.collider.GetComponentInParent<Health>();
             if (targetHealth != null)
             {
-                targetHealth.TakeDamage(damage); // Звичайна шкода без множника
+                targetHealth.TakeDamage(damage); 
             }
         }
         //Ignore collisions with other projectiles.

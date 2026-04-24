@@ -60,6 +60,9 @@ public class TacticalEnemy : MonoBehaviour
 
     void Awake()
     {
+        var h = GetComponent<Health>();
+        h.OnDamaged += (amount) => OnTookDamage();
+        h.OnDeath += () => ChangeState(new DeadState(this));
         Agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
         Awareness = GetComponent<EnemyAwareness>();
@@ -84,8 +87,14 @@ public class TacticalEnemy : MonoBehaviour
             difficultyService.OnDifficultyChanged += UpdateStats;
             UpdateStats();
         }
+        Health h = GetComponent<Health>();
+        if (h != null)
+        {
+            h.OnDeath += () => ChangeState(new DeadState(this));
+        }
 
         Awareness.OnAlerted += () => {
+            if (GetComponent<Health>().isDead) return;
             ChangeState(AttackState);
             NotifyAllies();
         };

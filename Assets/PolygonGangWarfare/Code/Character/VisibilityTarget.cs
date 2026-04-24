@@ -36,9 +36,6 @@ public class VisibilityTarget : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Цей метод викликає ворог. Він враховує ПОТОЧНУ висоту та радіус, навіть якщо гравець присів.
-    /// </summary>
     public List<Vector3> GetActivePoints()
     {
         _cachedWorldPoints.Clear();

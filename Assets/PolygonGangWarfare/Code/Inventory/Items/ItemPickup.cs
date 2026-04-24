@@ -2,43 +2,15 @@ using UnityEngine;
 
 public class ItemPickup : MonoBehaviour
 {
-    [Header("Налаштування")]
     public ItemData itemData;
-    [SerializeField] private GameObject uiCanvas; // Канвас з літерою F
+    private InteractablePrompt _prompt;
 
-    // Таймер (як у твоїх дверях)
-    private float lastLookTime = -1f;
+    void Awake() => _prompt = GetComponent<InteractablePrompt>();
 
-    void Start()
-    {
-        if (uiCanvas != null) uiCanvas.SetActive(false);
-    }
-
-    void Update()
-    {
-        if (uiCanvas != null)
-        {
-            // ЛОГІКА АВТО-ЗНИКНЕННЯ (1 в 1 як у дверях)
-            // Якщо гравець подивився менше ніж 0.1с тому -> показуємо
-            bool shouldShow = (Time.time - lastLookTime < 0.1f);
-
-            if (uiCanvas.activeSelf != shouldShow)
-            {
-                uiCanvas.SetActive(shouldShow);
-            }
-
-            // Додатково: повертаємо F до камери, щоб читалось
-            if (shouldShow && Camera.main != null)
-            {
-                uiCanvas.transform.LookAt(uiCanvas.transform.position + Camera.main.transform.forward);
-            }
-        }
-    }
-
-    // Гравець просто "пінгує" цей метод щокадру (як у дверях)
     public void ShowPrompt()
     {
-        lastLookTime = Time.time;
+        // Просто передаємо текст
+        if (_prompt != null) _prompt.Show("Підібрати " + itemData.itemName);
     }
 
     public void OnInteract()

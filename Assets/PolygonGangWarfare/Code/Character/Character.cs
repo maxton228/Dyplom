@@ -219,7 +219,6 @@ namespace InfimaGames.LowPolyShooterPack
 
                 if (globalVolume != null && globalVolume.profile != null)
                 {
-                    // Намагаємося знайти віньєтку в профілі
                     if (!globalVolume.profile.TryGet(out vignette))
                     {
                         Debug.LogWarning("Vignette not found in Global Volume profile!");
@@ -286,8 +285,21 @@ namespace InfimaGames.LowPolyShooterPack
 
         public override bool IsTutorialTextVisible() => tutorialTextVisible;
 
-        public override Vector2 GetInputMovement() => axisMovement;
-        public override Vector2 GetInputLook() => axisLook;
+        public override Vector2 GetInputMovement()
+        {
+            if (movementComponent != null && movementComponent.isDraggingCorpse)
+                return axisMovement * movementComponent.draggingMultiplier;
+
+            return axisMovement;
+        }
+
+        public override Vector2 GetInputLook()
+        {
+            if (movementComponent != null && movementComponent.isDraggingCorpse)
+                return axisLook * movementComponent.mouseSensitivity;
+
+            return axisLook;
+        }
         public bool IsJumping() => holdingButtonJump;
         public bool IsCrouching() => crouching;
         #endregion
@@ -338,11 +350,9 @@ namespace InfimaGames.LowPolyShooterPack
         {
             isInventoryOpen = open;
 
-            // Коли відкриваємо інвентар - розблокуємо курсор. Коли закриваємо - блокуємо.
             cursorLocked = !open;
             UpdateCursorState();
 
-            // Якщо відкрили - примусово зупиняємо біг та прицілювання
             if (open)
             {
                 running = false;
@@ -358,7 +368,6 @@ namespace InfimaGames.LowPolyShooterPack
 
             float targetIntensity = crouching ? crouchVignetteIntensity : 0f;
 
-            // Плавно змінюємо значення (Lerp)
             vignette.intensity.value = Mathf.Lerp(vignette.intensity.value, targetIntensity, Time.deltaTime * 5f);
         }
         public void OnTryCrouch(InputAction.CallbackContext context)
@@ -376,11 +385,9 @@ namespace InfimaGames.LowPolyShooterPack
         /// </summary>
         private void UpdateAnimator()
         {
-            float inputMagnitude = Mathf.Clamp01(Mathf.Abs(axisMovement.x) + Mathf.Abs(axisMovement.y));
+            Vector2 currentMove = GetInputMovement();
+            float inputMagnitude = Mathf.Clamp01(Mathf.Abs(currentMove.x) + Mathf.Abs(currentMove.y));
 
-            // --- ГОЛОВНА ЗМІНА ---
-            // Якщо ми присіли, ми штучно зменшуємо це число для аніматора.
-            // 0.5f означає, що анімація програватиметься на 50% інтенсивності/швидкості.
             if (crouching)
             {
                 inputMagnitude *= 0.6f;
@@ -422,19 +429,17 @@ namespace InfimaGames.LowPolyShooterPack
             const string stateName = "Fire";
             characterAnimator.CrossFade(stateName, 0.05f, layerOverlay, 0);
 
-            // --- ЛОГІКА ШУМУ ЗБРОЇ ---
             if (noiseMaker != null)
             {
                 float weaponNoise = 0f;
 
-                // Перевіряємо тип зброї (це примітивна перевірка, але спрацює)
                 if (equippedWeapon.IsAutomatic())
                 {
-                    weaponNoise = 50f; // Автомат -> Дуже гучно (чують всі)
+                    weaponNoise = 50f;
                 }
                 else
                 {
-                    weaponNoise = 3f;  // Пістолет -> "Тихо" (чують тільки впритул)
+                    weaponNoise = 3f;
                 }
 
                 noiseMaker.MakeSound(weaponNoise, false);
@@ -551,30 +556,24 @@ namespace InfimaGames.LowPolyShooterPack
         private IEnumerator LandingDropCoroutine(float verticalIntensity)
         {
             float timer = 0f;
-            float duration = 0.25f; // Трохи швидше, щоб удар був різким
+            float duration = 0.25f;
 
             Vector3 originalPos = cameraWorld.transform.localPosition;
             Quaternion originalRot = cameraWorld.transform.localRotation;
 
-            // Налаштування сили ефекту
-            float dropStrength = verticalIntensity;       // Наскільки опускаємось вниз (метри)
-            float tiltStrength = verticalIntensity * 30f; // Наскільки киваємо головою (градуси)
+            float dropStrength = verticalIntensity;
+            float tiltStrength = verticalIntensity * 30f;
 
             while (timer < duration)
             {
                 float progress = timer / duration;
 
-                // Використовуємо криву: Різко вниз і плавно назад
                 float curve = Mathf.Sin(progress * Mathf.PI);
-
-                // 1. POSITION: Опускаємо камеру вниз (щоб відчути вагу)
                 float currentDrop = curve * dropStrength;
                 cameraWorld.transform.localPosition = originalPos - new Vector3(0, currentDrop, 0);
 
-                // 2. ROTATION: Нахиляємо камеру вниз (це і дає ефект удару по світу!)
-                // Повертаємо по осі X (вниз) і трохи випадково по Z (вбік) для хаосу
                 float currentTilt = curve * tiltStrength;
-                Quaternion targetRot = Quaternion.Euler(currentTilt, 0, 0); // Кивок вниз
+                Quaternion targetRot = Quaternion.Euler(currentTilt, 0, 0);
 
                 cameraWorld.transform.localRotation = originalRot * targetRot;
 
@@ -582,7 +581,6 @@ namespace InfimaGames.LowPolyShooterPack
                 yield return null;
             }
 
-            // Повертаємо все ідеально на місця
             cameraWorld.transform.localPosition = originalPos;
             cameraWorld.transform.localRotation = originalRot;
         }

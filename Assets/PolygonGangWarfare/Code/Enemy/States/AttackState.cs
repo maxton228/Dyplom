@@ -53,6 +53,13 @@ public class AttackState : IEnemyState
 
     void CombatLogic()
     {
+        var playerHealth = _enemy.player.GetComponent<Health>();
+        if (playerHealth != null && playerHealth.isDead)
+        {
+            _enemy.SetAiming(false);
+            _enemy.ChangeState(_enemy.PatrolState);
+            return;
+        }
         _enemy.Agent.isStopped = true;
 
         _enemy.SetAiming(true);

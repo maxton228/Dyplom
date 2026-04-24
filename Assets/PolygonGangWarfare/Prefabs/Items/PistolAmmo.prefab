@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 2721397768741609091}
   - component: {fileID: 5010357450626761151}
   - component: {fileID: 3301858327368322008}
-  - component: {fileID: 1879990976125051345}
   m_Layer: 0
   m_Name: Canvas
   m_TagString: Untagged
@@ -103,18 +102,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &1879990976125051345
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 814000401765344210}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa80723ffcadfc348be1bc743b760d28, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Billboard
 --- !u!1 &915157846171186752
 GameObject:
   m_ObjectHideFlags: 0
@@ -378,6 +365,7 @@ GameObject:
   - component: {fileID: 4137210821413247422}
   - component: {fileID: 3689781140550487800}
   - component: {fileID: 1074567862670764365}
+  - component: {fileID: 1502344548886870148}
   m_Layer: 0
   m_Name: PistolAmmo
   m_TagString: Untagged
@@ -436,7 +424,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemPickup
   itemData: {fileID: 11400000, guid: c3ac752ec0ceb424680e538d1b2d1906, type: 2}
-  uiCanvas: {fileID: 814000401765344210}
+--- !u!114 &1502344548886870148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3918083125040008399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a18bd382602c14f4ea48264da4f3187d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractablePrompt
 --- !u!1 &4596819638891641935
 GameObject:
   m_ObjectHideFlags: 0

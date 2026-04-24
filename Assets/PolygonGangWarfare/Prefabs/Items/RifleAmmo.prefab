@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 642280094405922808}
   - component: {fileID: 7701909797788289715}
   - component: {fileID: 6041769263516404206}
+  - component: {fileID: 8404930711023955329}
   m_Layer: 0
   m_Name: RifleAmmo
   m_TagString: Untagged
@@ -116,7 +117,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 749074542811523369}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.14929114, y: 0.062571876, z: 0.14929114}
   m_ConstrainProportionsScale: 0
@@ -159,7 +160,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemPickup
   itemData: {fileID: 11400000, guid: 7aca7457a66758a4e89438fbc956fe3b, type: 2}
-  uiCanvas: {fileID: 1272479680968118547}
+--- !u!114 &8404930711023955329
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 749074542811523369}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a18bd382602c14f4ea48264da4f3187d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractablePrompt
 --- !u!1 &1272479680968118547
 GameObject:
   m_ObjectHideFlags: 0
@@ -172,7 +184,6 @@ GameObject:
   - component: {fileID: 2420331568837524181}
   - component: {fileID: 1104261545229498870}
   - component: {fileID: 4787333881673229188}
-  - component: {fileID: 1735681738982662949}
   m_Layer: 0
   m_Name: Canvas
   m_TagString: Untagged
@@ -263,18 +274,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &1735681738982662949
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1272479680968118547}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa80723ffcadfc348be1bc743b760d28, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Billboard
 --- !u!1 &1841673647485262912
 GameObject:
   m_ObjectHideFlags: 0
