@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using InfimaGames.LowPolyShooterPack;
+
 public class PlayerInteraction : MonoBehaviour
 {
     [Header("Посилання")]
@@ -27,6 +28,8 @@ public class PlayerInteraction : MonoBehaviour
     private Rigidbody currentCorpsePart;
     private AdvancedDoor draggingDoor;
 
+    private HackablePanelInteract currentPanel;
+
     private ConfigurableJoint corpseJoint;
     private GameObject dragAnchor;
     private float currentDragDistance;
@@ -48,29 +51,35 @@ public class PlayerInteraction : MonoBehaviour
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
         RaycastHit hit;
 
-        currentItem = null; currentDoor = null; currentCorpsePart = null;
+        currentItem = null; currentDoor = null; currentCorpsePart = null; currentPanel = null;
 
         LayerMask mask = ~ignoreLayers;
 
         if (Physics.Raycast(ray, out hit, itemDistance, mask))
         {
-            AdvancedDoor door = hit.collider.GetComponentInParent<AdvancedDoor>();
-            if (door != null) { currentDoor = door; door.ShowPrompt(); return; }
+            IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
 
-            ItemPickup item = hit.collider.GetComponentInParent<ItemPickup>();
-            if (item != null) { currentItem = item; item.ShowPrompt(); return; }
+            currentDoor = hit.collider.GetComponentInParent<AdvancedDoor>();
+            currentItem = hit.collider.GetComponentInParent<ItemPickup>();
+
+            currentPanel = hit.collider.GetComponentInParent<HackablePanelInteract>();
 
             bool isCorpseLayer = ((1 << hit.collider.gameObject.layer) & corpseLayer) != 0;
-
             if (isCorpseLayer || hit.collider.GetComponent<Rigidbody>() != null)
             {
-                CorpseInteract corpse = hit.collider.transform.root.GetComponentInChildren<CorpseInteract>();
-
-                if (corpse != null)
+                if (hit.collider.transform.root.GetComponentInChildren<CorpseInteract>() != null)
                 {
                     currentCorpsePart = hit.collider.GetComponent<Rigidbody>();
-                    corpse.ShowPrompt();
+                    if (interactable == null)
+                    {
+                        interactable = hit.collider.transform.root.GetComponentInChildren<IInteractable>();
+                    }
                 }
+            }
+
+            if (interactable != null)
+            {
+                interactable.ShowPrompt();
             }
         }
     }
@@ -79,7 +88,11 @@ public class PlayerInteraction : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.F))
         {
-            if (currentItem != null && !isHoldingKey && corpseJoint == null)
+            if (currentPanel != null)
+            {
+                currentPanel.Interact();
+            }
+            else if (currentItem != null && !isHoldingKey && corpseJoint == null)
                 currentItem.OnInteract();
             else if (currentDoor != null)
             {

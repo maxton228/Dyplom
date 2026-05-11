@@ -12,7 +12,9 @@ public class SearchState : IEnemyState
     {
         Debug.Log("Починається пошук...");
         _enemy.Agent.isStopped = false;
-        _enemy.Agent.speed = 2f;
+        
+        _enemy.Agent.speed = _enemy.Awareness.currentAwareness > 0.4f ? 3.5f : 2f;
+
         _enemy.Agent.SetDestination(_enemy.LastKnownTargetPos);
         _searchTimer = Time.time;
         _isMovingToRandomPoint = false;

@@ -8,7 +8,10 @@ public class MinigameController : MonoBehaviour
 
     [Header("Об'єкти мінігри")]
     public GameObject lockpickingPrefab;
-    public MonoBehaviour lockpickingScript;
+
+    // ВАЖЛИВО: Тип змінений з MonoBehaviour на Lockpicking!
+    public Lockpicking lockpickingScript;
+
     public GameObject blurVolume;
 
     [Header("Події")]
@@ -34,11 +37,28 @@ public class MinigameController : MonoBehaviour
 
     public void StartLockpicking(AdvancedDoor door)
     {
+        if (isMinigameActive) return;
+
         currentDoor = door;
         isMinigameActive = true;
 
         if (lockpickingPrefab != null) lockpickingPrefab.SetActive(true);
-        if (lockpickingScript != null) lockpickingScript.enabled = true;
+
+        if (lockpickingScript == null && lockpickingPrefab != null)
+        {
+            lockpickingScript = lockpickingPrefab.GetComponentInChildren<Lockpicking>(true);
+        }
+
+        if (lockpickingScript != null)
+        {
+            lockpickingScript.enabled = true;
+            lockpickingScript.ResetMinigame();
+        }
+        else
+        {
+            Debug.LogError("MinigameController: Не вдалося знайти скрипт Lockpicking на об'єкті мінігри!");
+        }
+
         if (blurVolume != null) blurVolume.SetActive(true);
 
         Cursor.lockState = CursorLockMode.Locked;

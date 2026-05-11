@@ -39,18 +39,32 @@ public class Lockpicking : MonoBehaviour
     private bool isTurning = false;
     private bool isUnlocked = false;
 
-    private void OnEnable()
+    public void ResetMinigame()
     {
+        CancelInvoke();
+
         isUnlocked = false;
         isTurning = false;
         currentPickAngle = 0f;
         currentCylinderAngle = 0f;
+
         lockpickPivot.localEulerAngles = Vector3.zero;
         cylinderPivot.localEulerAngles = Vector3.zero;
 
+        if (stuckSource != null) stuckSource.Stop();
+        if (movementSource != null) movementSource.Stop();
+        if (turnSource != null) turnSource.Stop();
+
         unlockAngle = Random.Range(minPickAngle, maxPickAngle);
 
-        if (startSound != null) mainSource.PlayOneShot(startSound);
+        if (mainSource != null && mainSource.isActiveAndEnabled)
+        {
+            mainSource.PlayOneShot(startSound);
+        }
+        else
+        {
+            Debug.Log("Звук пропущено");
+        }
     }
 
     void Start()
@@ -180,10 +194,6 @@ public class Lockpicking : MonoBehaviour
         if (MinigameController.Instance != null)
         {
             MinigameController.Instance.StopLockpicking(true);
-        }
-        else
-        {
-            Debug.LogError("Lockpicking: Не можу знайти MinigameController.Instance!");
         }
 
         enabled = false;

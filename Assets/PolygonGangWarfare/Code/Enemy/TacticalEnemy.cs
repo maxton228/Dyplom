@@ -21,7 +21,11 @@ public class TacticalEnemy : MonoBehaviour
 
     [Header("Налаштування Складності")]
     public EnemyStats Stats;
-
+    [Header("Виявлення трупів")]
+    public LayerMask corpseLayer;
+    public float corpseDetectionRadius = 15f;
+    private float _corpseCheckTimer = 0f;
+    private float _corpseCheckInterval = 0.5f;
     [Header("Налаштування")]
     public Transform shootingPoint;
     public EnemyMuzzleEffect muzzleEffect;
@@ -95,8 +99,22 @@ public class TacticalEnemy : MonoBehaviour
 
         Awareness.OnAlerted += () => {
             if (GetComponent<Health>().isDead) return;
-            ChangeState(AttackState);
-            NotifyAllies();
+
+            // Бот підняв тривогу і бачить гравця
+            if (CanSeePlayer())
+            {
+                LastKnownTargetPos = player.position;
+                ChangeState(AttackState);
+                NotifyAllies();
+            }
+            else
+            {
+                // Тривога, але гравця не видно
+                if (_currentState != AttackState)
+                {
+                    ChangeState(SearchState);
+                }
+            }
         };
 
         ChangeState(PatrolState);
@@ -110,7 +128,11 @@ public class TacticalEnemy : MonoBehaviour
         if (!Awareness.IsAlerted)
         {
             float visibility = CalculateVisibilityFactor();
-
+            if (Time.time >= _corpseCheckTimer)
+            {
+                DetectCorpses();
+                _corpseCheckTimer = Time.time + _corpseCheckInterval;
+            }
             if (visibility > 0)
             {
                 LastKnownTargetPos = player.position;
@@ -139,7 +161,49 @@ public class TacticalEnemy : MonoBehaviour
             }
         }
     }
+    private void DetectCorpses()
+    {
+        if (Awareness.IsAlerted) return;
 
+        Vector3 eyePos = eyePoint != null ? eyePoint.position : transform.position + Vector3.up * 1.6f;
+
+        Collider[] corpses = Physics.OverlapSphere(eyePos, corpseDetectionRadius, corpseLayer);
+
+        foreach (var corpse in corpses)
+        {
+            Health targetHealth = corpse.transform.root.GetComponentInChildren<Health>();
+
+            if (targetHealth != null && !targetHealth.isDead)
+            {
+                continue;
+            }
+
+            Vector3 dirToCorpse = (corpse.transform.position - eyePos).normalized;
+            float angleToCorpse = Vector3.Angle(transform.forward, dirToCorpse);
+
+            if (angleToCorpse < viewAngle / 2)
+            {
+                if (!Physics.Linecast(eyePos, corpse.transform.position, obstacleMask))
+                {
+                    Debug.Log("Знайдено справжній труп! Тривога!");
+
+                    corpse.gameObject.layer = LayerMask.NameToLayer("Default");
+
+                    LastKnownTargetPos = corpse.transform.position;
+                    Awareness.AddSuspicion(0.8f);
+
+                    if (_currentState != SearchState && _currentState != AttackState)
+                    {
+                        ChangeState(SearchState);
+                    }
+
+                    WarnNearbyAllies(corpse.transform.position, 15f);
+
+                    break;
+                }
+            }
+        }
+    }
     public void ChangeState(IEnemyState newState)
     {
         if (Awareness.IsAlerted && newState == PatrolState) return;
@@ -310,23 +374,60 @@ public class TacticalEnemy : MonoBehaviour
     }
     public void OnTookDamage()
     {
-        if (player != null)
+        if (CanSeePlayer())
         {
             LastKnownTargetPos = player.position;
-        }
+            if (!Awareness.IsAlerted) Awareness.TriggerInstantAlert();
 
-        if (!Awareness.IsAlerted)
-        {
-            Awareness.TriggerInstantAlert();
+            if (_currentState != AttackState)
+            {
+                ChangeState(AttackState);
+                NotifyAllies();
+            }
         }
-
-        if (_currentState != AttackState)
+        else
         {
-            ChangeState(AttackState);
-            NotifyAllies();
+            if (!Awareness.IsAlerted)
+            {
+                Awareness.AddSuspicion(0.5f);
+                Vector3 approximatePos = player.position + new Vector3(Random.Range(-3f, 3f), 0, Random.Range(-3f, 3f));
+                LastKnownTargetPos = approximatePos;
+
+                if (_currentState != SearchState && _currentState != AttackState)
+                {
+                    ChangeState(SearchState);
+                }
+
+                WarnNearbyAllies(approximatePos, 15f);
+            }
         }
     }
+    private void WarnNearbyAllies(Vector3 approximateDangerPos, float warningRadius)
+    {
+        var allEnemies = EnemyAwareness.AllEnemies;
+        foreach (var enemyAwareness in allEnemies)
+        {
+            if (enemyAwareness == null) continue;
 
+            var ally = enemyAwareness.GetComponent<TacticalEnemy>();
+
+            if (ally != null && ally != this && !ally.Awareness.IsAlerted)
+            {
+                float distToAlly = Vector3.Distance(transform.position, ally.transform.position);
+
+                if (distToAlly <= warningRadius)
+                {
+                    ally.Awareness.AddSuspicion(0.5f);
+                    ally.LastKnownTargetPos = approximateDangerPos;
+
+                    if (ally._currentState != ally.SearchState && ally._currentState != ally.AttackState)
+                    {
+                        ally.ChangeState(ally.SearchState);
+                    }
+                }
+            }
+        }
+    }
     void OnDrawGizmosSelected()
     {
         if (Stats == null) return;
@@ -375,7 +476,7 @@ public class TacticalEnemy : MonoBehaviour
 
             if (ally != null && ally != this && !ally.Awareness.IsAlerted)
             {
-                ally.AlertFromAlly(player.position);
+                ally.AlertFromAlly(LastKnownTargetPos);
             }
         }
     }

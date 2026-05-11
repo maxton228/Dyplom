@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-public class AdvancedDoor : MonoBehaviour
+public class AdvancedDoor : MonoBehaviour, IInteractable
 {
     [Header("Налаштування")]
     [SerializeField] private float maxAngle = 90f;

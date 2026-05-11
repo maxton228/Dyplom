@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class CorpseInteract : MonoBehaviour
+public class CorpseInteract : MonoBehaviour, IInteractable
 {
     private InteractablePrompt _prompt;
     private bool _isBeingDragged = false;
